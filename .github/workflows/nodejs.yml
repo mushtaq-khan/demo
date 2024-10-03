@@ -16,7 +16,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v2
       with:
-        node-version: '14'  # Specify your Node.js version
+        node-version: '20'  # Specify your Node.js version
 
     - name: Install dependencies
       run: npm install
@@ -58,5 +58,6 @@ jobs:
           export JWT_SECRET='${{ secrets.JWT_SECRET }}'  # Set the JWT secret
           export PORT='${{ secrets.PORT }}'              # Set the port
           export MONGO_URI='${{ secrets.MONGO_URI }}'    # Set the MongoDB URI
-          pm2 restart myapp || pm2 start index.js --name myapp  # Restart the app or start it if it's not running
+          node src/server.js
+          # pm2 restart myapp || pm2 start index.js --name myapp  # Restart the app or start it if it's not running
         EOF
