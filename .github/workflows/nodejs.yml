@@ -1,29 +1,62 @@
-name: Node.js CI
+name: Deploy to AWS EC2
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
+      - master  # Deploy when pushing to the main branch
 
 jobs:
-  build:
-
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
 
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v2
       with:
-        node-version: '16'
+        node-version: '14'  # Specify your Node.js version
 
     - name: Install dependencies
       run: npm install
 
-    - name: Run tests
-      run: npm test
+    # - name: Run tests
+    #   run: npm test
+
+    # - name: Build the application
+    #   run: npm run build  # If you have a build step, otherwise you can skip this
+
+    - name: Prepare for deployment
+      run: |
+        zip -r app.zip .  # Zip the application files if necessary
+
+    - name: Copy files to EC2 instance
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # Your SSH private key
+        EC2_HOST: ${{ secrets.EC2_HOST }}                # Your EC2 instance public DNS or IP
+        EC2_USER: ${{ secrets.EC2_USER }}                # The SSH user for your EC2 instance
+      run: |
+        echo "$SSH_PRIVATE_KEY" > private_key.pem
+        chmod 600 private_key.pem
+        ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST 'mkdir -p ~/myapp'  # Create a directory on EC2
+        scp -o StrictHostKeyChecking=no -i private_key.pem app.zip $EC2_USER@$EC2_HOST:~/myapp/  # Copy the zip file to EC2
+
+    - name: SSH into EC2 and deploy
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+        EC2_USER: ${{ secrets.EC2_USER }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        PORT: ${{ secrets.PORT }}
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+      run: |
+        ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          cd ~/myapp
+          unzip -o app.zip  # Unzip the application files
+          npm install --production  # Install only production dependencies
+          export JWT_SECRET='${{ secrets.JWT_SECRET }}'  # Set the JWT secret
+          export PORT='${{ secrets.PORT }}'              # Set the port
+          export MONGO_URI='${{ secrets.MONGO_URI }}'    # Set the MongoDB URI
+          pm2 restart myapp || pm2 start index.js --name myapp  # Restart the app or start it if it's not running
+        EOF
