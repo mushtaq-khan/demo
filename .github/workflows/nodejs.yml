@@ -58,6 +58,6 @@ jobs:
           export JWT_SECRET='${{ secrets.JWT_SECRET }}'  # Set the JWT secret
           export PORT='${{ secrets.PORT }}'              # Set the port
           export MONGO_URI='${{ secrets.MONGO_URI }}'    # Set the MongoDB URI
-          node src/server.js
-          # pm2 restart myapp || pm2 start index.js --name myapp  # Restart the app or start it if it's not running
+          # node src/server.js
+          pm2 restart myapp || pm2 start server.js --name myapp  # Restart the app or start it if it's not running
         EOF
